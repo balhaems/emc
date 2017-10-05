@@ -1,6 +1,7 @@
 #-*-coding:utf-8-*-
 ## autopep8 --in-place --aggressive --aggressive <filename>
 from melsecNet import MelsecNet
+import json
 
 def main():
     # step#0 : load line/machine config with json
