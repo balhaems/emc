@@ -1,0 +1,50 @@
+#-*-coding:utf-8-*-
+##autopep8 --in-place --aggressive --aggressive <filename>
+
+(lambda: None, lambda: '')[self.enmValueTypes.ASC == valueType]()
+
+readBlock case DevB
+    for i, r in enumerate(rx):
+        print i, r ^ preRx[i] # xor >> bitChange
+        print hex(self.devAddress + (i * 0x10)), string.zfill(bin(r)[2:], 16)
+    preRx = rx # bit status backup
+
+readBlock case DevW
+    def readBlock_W(self, valueType):
+        result = self.mdReceiveEx(self.mnet, self.network, self.station, self.enmDeviceTypes.DevW, self.devAddress, byref(self.length), self.rx)
+        return result, self.rx
+
+    if valueType == self.enmDeviceTypes.ASC:
+        ascValue = ''
+        for i, r in enumerate(self.rx):
+            # print hex(devAddress + i), r, chr(r)
+            ascValue += chr(r)
+        return ascValue
+    else:
+        return self.rx
+
+json for machines
+{
+    "cim":{
+        "nick": "ecs",
+        "channel": 151, //MNET1=151, MNET2=152, MNET3=153, MNET4=154
+        "network": 0,   //debug = 0, runtime = 1
+        "station": 255, //fixed = 0xFF >> Station number = 255 ECS own
+        "bit_address":"0x0C00", //int("0x0C00", 16)
+        "read_lenth":32, //melsec plc 1 word is 2byte * 8 bit == 16 bit
+        "bit_list":{
+            "0x0C00":"bit_name"
+        }
+    },
+    "eqp1":{
+        "nick": "eqp1",
+        "channel": 151,
+        "network": 0,  
+        "station": 255,
+        "bit_address":"0x0C00",
+        "read_lenth":32,
+        "bit_list":{
+            "0x0C00":"bit_name"
+        }
+    }
+}

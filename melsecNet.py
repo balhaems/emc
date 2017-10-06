@@ -2,177 +2,93 @@ from ctypes import *
 import string
 
 
+DEFAULT_OPEN_MODE = -1  # No mode set
+
+MNET_PATH = c_int32()  # path
+
 def enum(*sequential, **named):
     enums = dict(zip(sequential, range(len(sequential))), **named)
     reverse = dict((value, key) for key, value in enums.iteritems())
     enums['reverse_mapping'] = reverse
     return type('Enum', (), enums)
 
+enmValueTypes = enum(ASC=0, I2=1, I4=2)
+enmDeviceTypes = enum(DevX=1, DevY=2, DevD=13, DevZ=20, DevR=22, DevB=23, DevW=24)
+
+melsecLib = WinDLL('Mmscl32.dll')  # stdcall
+mdOpen = melsecLib['mdOpen']
+mdClose = melsecLib['mdClose']
+mdBdRst = melsecLib['mdBdRst']
+mdReceiveEx = melsecLib['mdReceiveEx']
+mdSendEx = melsecLib['mdSendEx']
+mdDevSetEx = melsecLib['mdDevSetEx']
+mdDevRstEx = melsecLib['mdDevRstEx']
+
+mdOpen.restype = c_ushort
+mdClose.restype = c_ushort
+mdBdRst.restype = c_ushort
+mdReceiveEx.restype = c_int32
+mdSendEx.restype = c_int32
+mdDevSetEx.restype = c_int32
+mdDevRstEx.restype = c_int32
+
+mdOpen.argtypes = [c_int32, c_int32, POINTER(c_int32)]
+mdClose.argtypes = [c_int32]
+mdBdRst.argtypes = [c_int32]
+mdReceiveEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32, POINTER(c_ushort), POINTER(c_ushort)]
+mdSendEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32, POINTER(c_ushort), POINTER(c_ushort)]
+mdDevSetEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32]
+mdDevRstEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32]
+
 
 class MelsecNet(object):
     """Mmscl32 Warpper Class"""
-    ADDRESS_MASK = 0xFFF0  # address must divide 0xF is 0
-    MODE = -1 # No mode set
+    
+    rx = (c_ushort * 2)()  # read buffer
+    preRx = (c_ushort * 64)()  # backup pre values
 
-    network = 0 # fixed >> Network number = 1 if test = 0
-    station = 0xFF # fixed >> Station number = 255 ECS own
-    mnet = c_int32() # path
-    devAddress = 0x0C00 & ADDRESS_MASK # start address
-    length = c_ushort(4) # byte *2= 16 bit = 1 word
-    rx = (c_ushort * 2)() # read buffer
-    preRx = (c_ushort * 64)() # backup pre values
+    def __init__(self, plc):
+        self.channel = plc["channel"]
+        self.network = plc["network"]  # fixed >> Network number = 1 if test = 0
+        self.station = plc["station"]  # 0xFF  # fixed >> Station number = 255 ECS own
+        self.start_address = int(plc["start_address"], 16) & 0xFFF0  # ADDRESS_MASK = 0xFFF0  # address must divide 0xF is 0
+        self.length = c_ushort(plc["read_length"])  # byte *2= 16 bit = 1 word
 
-    enmDeviceTypes = enum(
-        DevX=1,
-        DevY=2,
-        DevD=13,
-        DevZ=20,
-        DevR=22,
-        DevB=23,
-        DevW=24)
-    enmChannels = enum(MNET1=151, MNET2=152, MNET3=153, MNET4=154)
-    enmValueTypes = enum(ASC=0, I2=1, I4=2)
+    def open_melsec(self):
+        return mdOpen(self.channel, DEFAULT_OPEN_MODE, byref(MNET_PATH))
 
-    def __init__(self):
-        self.melsecLib = WinDLL('Mmscl32.dll')  # stdcall
+    def close_melsec(self):
+        return mdClose(MNET_PATH)
 
-        self.mdOpen = self.melsecLib['mdOpen']
-        self.mdOpen.restype = c_ushort
-        self.mdOpen.argtypes = [c_int32, c_int32, POINTER(c_int32)]
+    def reset_board(self):
+        return mdBdRst(MNET_PATH)
+    
+    def set_bit(self, devAddress):
+        return mdDevSetEx(MNET_PATH, self.network, self.station, enmDeviceTypes.DevB, devAddress)
 
-        self.mdBdRst = self.melsecLib['mdBdRst']
-        self.mdBdRst.restype = c_ushort
-        self.mdBdRst.argtypes = [c_int32]
+    def reset_bit(self, devAddress):
+        return mdDevRstEx(MNET_PATH, self.network, self.station, enmDeviceTypes.DevB, devAddress)
 
-        self.mdReceiveEx = self.melsecLib['mdReceiveEx']
-        self.mdReceiveEx.restype = c_int32
-        self.mdReceiveEx.argtypes = [
-            c_int32,
-            c_int32,
-            c_int32,
-            c_int32,
-            c_int32,
-            POINTER(c_ushort),
-            POINTER(c_ushort)]
+    def write_block(self, devAddress, wLength, data):
+        return mdSendEx(MNET_PATH, self.network, self.station, enmDeviceTypes.DevW, devAddress, byref(wLength), data)
 
-        self.mdSendEx = self.melsecLib['mdSendEx']
-        self.mdSendEx.restype = c_int32
-        self.mdSendEx.argtypes = [
-            c_int32,
-            c_int32,
-            c_int32,
-            c_int32,
-            c_int32,
-            POINTER(c_ushort),
-            POINTER(c_ushort)]
+    def read_block(self, devAddress, wLength):  # read DevW
+        length = c_ushort(wLength)
+        rxbuffer = (c_ushort * length)()
+        result = mdReceiveEx(MNET_PATH, self.network, self.station, enmDeviceTypes.DevW, devAddress, byref(length), rxbuffer)
+        return result, rxbuffer
 
-        self.mdDevSetEx = self.melsecLib['mdDevSetEx']
-        self.mdDevSetEx.restype = c_int32
-        self.mdDevSetEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32]
-
-        self.mdDevRstEx = self.melsecLib['mdDevRstEx']
-        self.mdDevRstEx.restype = c_int32
-        self.mdDevRstEx.argtypes = [c_int32, c_int32, c_int32, c_int32, c_int32]
-
-        self.mdClose = self.melsecLib['mdClose']
-        self.mdClose.restype = c_ushort
-        self.mdClose.argtypes = [c_int32]
-
-    def openMelsecNet(self):
-        result = self.mdOpen(self.enmChannels.MNET1, self.MODE, byref(self.mnet))
-        if (result != 0):
-            print "mdOpen Error " + str(result) + '\n' + "Check Net#, St# >>  GoodBye App Exit"
-        return result
-
-    def readBlock_B(self):   # monitoring loop
-        result = mdReceiveEx(
-            self.mnet,
-            self.network,
-            self.station,
-            self.enmDeviceTypes.DevB,
-            self.devAddress,
-            byref(self.length),
-            self.rx)
-        if (result != 0):
-            print "ReadBlock_B Error " + str(result)
-        else:
-            for i, r in enumerate(rx):
-                # print i, r ^ preRx[i] # xor >> bitChange
-                print hex(self.devAddress + (i * 0x10)), string.zfill(bin(r)[2:], 16)
-            # preRx = rx # bit status backup
-        return result
-
-    def readBlock_W(self, valueType):
-        result = mdReceiveEx(
-            self.mnet,
-            self.network,
-            self.station,
-            self.enmDeviceTypes.DevW,
-            self.devAddress,
-            byref(self.length),
-            self.rx)
-        if (result != 0):
-            print "ReadBlock_W Error " + str(result)
-            return (lambda: None, lambda: '')[self.enmValueTypes.ASC == valueType]()
-
-        if valueType == self.enmValueTypes.ASC:
-            strValue = ''
-            for i, r in enumerate(rx):
-                # print hex(devAddress + i), r, chr(r)
-                strValue += chr(r)
-            return strValue
-        else:
-            return rx
-
-    def writeBlock(self):
-        # rx[0]=123
-        # rx[1]=321
-        result = mdSendEx(
-            self.mnet,
-            self.network,
-            self.station,
-            self.enmDeviceTypes.DevW,
-            self.devAddress,
-            byref(self.length),
-            self.rx)
-        if (result != 0):
-            print "WriteBlock Error " + str(result)
-        return result
-
-    def resetBoard(self):
-        result = self.mdBdRst(self.mnet)
-        return result
-
-    def setBit(self):
-        result = self.mdDevSetEx(
-            self.mnet,
-            self.network,
-            self.station,
-            self.enmDeviceTypes.DevB,
-            self.devAddress)
-        return result
-
-    def resetBit(self):
-        result = self.mdDevRstEx(
-            self.mnet,
-            self.network,
-            self.station,
-            self.enmDeviceTypes.DevB,
-            self.devAddress)
-        return result
-
-    def closeMelsecNet(self):
-        result = self.mdClose(self.mnet)
-        return result
+    def monitor_bit(self):   # bit monitoring loop
+        result = mdReceiveEx(MNET_PATH, self.network, self.station, enmDeviceTypes.DevB, self.start_address, byref(self.length), self.rx)
+        return result, self.rx
 
 
 def main():
-    plc = MelsecNet()
-    plc.openMelsecNet()
-    print plc.enmChannels.MNET1
-    print plc.ADDRESS_MASK
-    print plc.MODE
-
+    pass
+    # plc = MelsecNet(plc)
+    # result = plc.openMelsecNet()
+    # if result != 0:
+    #     print "mdOpen Error " + str(result) + '\n' + "Check Network, Station"
 
 if __name__ == '__main__':
     main()

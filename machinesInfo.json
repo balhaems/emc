@@ -1,0 +1,24 @@
+{
+    "cim":{
+        "nick": "ecs",
+        "channel": 151, 
+        "network": 0, 
+        "station": 255,
+        "start_address":"0x0C00",
+        "read_length":32,
+        "bit_list":{
+            "0x0C00":"bit_name"
+        }
+    },
+    "eqp1":{
+        "nick": "eqp1",
+        "channel": 151,
+        "network": 0,  
+        "station": 255,
+        "start_address":"0x0C00",
+        "read_length":32,
+        "bit_list":{
+            "0x0C00":"bit_name"
+        }
+    }
+}
