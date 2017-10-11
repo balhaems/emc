@@ -7,7 +7,7 @@
         "start_address":"0x0C00",
         "read_length":32,
         "bit_list":{
-            "0x0C00":"bit_name"
+            "0x0C00":"result = plc.open_melsec()"
         }
     },
     "eqp1":{
@@ -18,7 +18,7 @@
         "start_address":"0x0C00",
         "read_length":32,
         "bit_list":{
-            "0x0C00":"bit_name"
+            "0x0C01":"bit_name"
         }
     }
 }

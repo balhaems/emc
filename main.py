@@ -1,6 +1,6 @@
 from melsecNet import MelsecNet
 from pprint import pprint
-import json, sys
+import json
 
 
 def main():
@@ -8,8 +8,8 @@ def main():
     baseInfo = json.load(open('machinesInfo.json'))
     machines = baseInfo.keys()
 
-    for v in baseInfo:
-        print baseInfo[v]
+    # for v in baseInfo:
+    #     print baseInfo[v]['bit_list']
     # for v in machines:
     #     print v
     #     print jsonInfo[v]
@@ -18,10 +18,11 @@ def main():
     # step#2 : generate New instacne for machines
     # step#3 : monitoring bit for each machine
 
-    # plc = MelsecNet(baseInfo[machines[0]])
-    # result = plc.openMelsecNet()
-    # if result != 0:
-    #     print "melsec open error# " + str(result) + " >> " + baseInfo[machines[0]]["nick"]
+    plc = MelsecNet(baseInfo[machines[0]])
+    exec baseInfo['cim']['bit_list']['0x0C00'].encode('ascii', 'ignore')
+    # result = plc.open_melsec()
+    if result != 0:
+        print "melsec open error# " + str(result) + " >> " + baseInfo[machines[0]]["nick"]
     #     print plc.channel, plc.network, plc.station, hex(plc.startAddress), plc.length
     #     # ReSetBoard()
     #     # ReadBlock_B()
@@ -31,7 +32,7 @@ def main():
     #     #     print a
     #     # setBit()
     #     # resetBit()
-    #     plc.closeMelsecNet()
+        plc.close_melsec()
 
 if __name__ == '__main__':
     main()
